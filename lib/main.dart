@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';    
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async'; 
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 void main() {
   runApp(new FriendlychatApp());
@@ -12,18 +13,18 @@ class FriendlychatApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return new MaterialApp(
-      title: "Friendlychat",
-      theme: defaultTargetPlatform == TargetPlatform.iOS         //new
-        ? kIOSTheme                                              //new
+      title: "Chatty",
+      theme: defaultTargetPlatform == TargetPlatform.iOS         
+        ? kIOSTheme                                              
         : kDefaultTheme,
       home: new ChatScreen(),
     );
   }
 }
 
-class ChatScreen extends StatefulWidget {                     //modified
-  @override                                                        //new
-  State createState() => new ChatScreenState();                    //new
+class ChatScreen extends StatefulWidget {                     
+  @override                                                        
+  State createState() => new ChatScreenState();                    
 } 
 
 // Add the ChatScreenState class definition in main.dart.
@@ -31,16 +32,16 @@ class ChatScreen extends StatefulWidget {                     //modified
 class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final List<ChatMessage> _messages = <ChatMessage>[];
   final TextEditingController _textController = new TextEditingController(); 
-  bool _isComposing = false;                 //new
-  @override                                                        //new
+  bool _isComposing = false;                 
+  @override                                                        
   Widget build(BuildContext context) {
     return new Scaffold(
       appBar: new AppBar(
           title: new Text("Chatty"),
           elevation:
               Theme.of(context).platform == TargetPlatform.iOS ? 0.0 : 4.0),
-      body: new Container(                                             //modified
-          child: new Column(                                           //modified
+      body: new Container(                                             
+          child: new Column(                                           
             children: <Widget>[
               new Flexible(
                 child: new ListView.builder(
@@ -57,20 +58,20 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               ),
             ],
           ),
-          decoration: Theme.of(context).platform == TargetPlatform.iOS //new
-              ? new BoxDecoration(                                     //new
-                  border: new Border(                                  //new
-                    top: new BorderSide(color: Colors.grey[200]),      //new
-                  ),                                                   //new
-                )                                                      //new
-              : null),                                                 //modified
+          decoration: Theme.of(context).platform == TargetPlatform.iOS 
+              ? new BoxDecoration(                                     
+                  border: new Border(                                  
+                    top: new BorderSide(color: Colors.grey[200]),      
+                  ),                                                   
+                )                                                      
+              : null),                                                 
     );
   }
   @override
-  void dispose() {                                                   //new
-    for (ChatMessage message in _messages)                           //new
-      message.animationController.dispose();                         //new
-    super.dispose();                                                 //new
+  void dispose() {                                                   
+    for (ChatMessage message in _messages)                           
+      message.animationController.dispose();                         
+    super.dispose();                                                 
   } 
   Future<Null> _ensureLoggedIn() async {
     GoogleSignInAccount user = googleSignIn.currentUser;
@@ -78,6 +79,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       user = await googleSignIn.signInSilently();
     if (user == null) {
       await googleSignIn.signIn();
+      analytics.logLogin();
     }
   }    
   Widget _buildTextComposer() {
@@ -90,11 +92,11 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             new Flexible(
               child: new TextField(
                 controller: _textController,
-                onChanged: (String text) {          //new
-                  setState(() {                     //new
-                    _isComposing = text.length > 0; //new
-                  });                               //new
-                },                                  //new
+                onChanged: (String text) {          
+                  setState(() {                     
+                    _isComposing = text.length > 0; 
+                  });                               
+                },                                  
                 onSubmitted: _handleSubmitted,
                 decoration:
                     new InputDecoration.collapsed(hintText: "Send a message"),
@@ -102,17 +104,17 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             ),
             new Container(
               margin: new EdgeInsets.symmetric(horizontal: 4.0),
-              child: Theme.of(context).platform == TargetPlatform.iOS ?  //modified
-              new CupertinoButton(                                       //new
-                child: new Text("Send"),                                 //new
-                onPressed: _isComposing                                  //new
-                    ? () =>  _handleSubmitted(_textController.text)      //new
+              child: Theme.of(context).platform == TargetPlatform.iOS ?  
+              new CupertinoButton(                                       
+                child: new Text("Send"),                                 
+                onPressed: _isComposing                                  
+                    ? () =>  _handleSubmitted(_textController.text)      
                     : null,) :
               new IconButton(
                 icon: new Icon(Icons.send),
                 onPressed: _isComposing
-                    ? () => _handleSubmitted(_textController.text)    //modified
-                    : null,                                           //modified
+                    ? () => _handleSubmitted(_textController.text)    
+                    : null,                                           
               ),
             ),
           ],
@@ -122,11 +124,11 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
   Future<Null> _handleSubmitted(String text) async {
     _textController.clear();
-    setState(() {                                                    //new
-      _isComposing = false;                                          //new
+    setState(() {                                                    
+      _isComposing = false;                                          
     });
-    await _ensureLoggedIn();                                       //new
-    _sendMessage(text: text);                                                              //new
+    await _ensureLoggedIn();                                       
+    _sendMessage(text: text);                                                              
     ChatMessage message = new ChatMessage(
       text: text,
       animationController: new AnimationController(
@@ -151,6 +153,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _messages.insert(0, message);
     });
     message.animationController.forward();
+    analytics.logEvent(name: 'send_message');
   }
 }
 
@@ -180,7 +183,7 @@ class ChatMessage extends StatelessWidget {
               child: new Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  new Text(googleSignIn.currentUser.displayName,                 //modified
+                  new Text(googleSignIn.currentUser.displayName,                 
                       style: Theme.of(context).textTheme.subhead),
                   new Container(
                     margin: const EdgeInsets.only(top: 5.0),
@@ -191,7 +194,7 @@ class ChatMessage extends StatelessWidget {
             ),
           ],
         ),
-      ),                                                           //new
+      ),                                                           
     );
   }
 }
@@ -210,3 +213,4 @@ final ThemeData kDefaultTheme = new ThemeData(
 );
 
 final googleSignIn = new GoogleSignIn();  
+final analytics = new FirebaseAnalytics();
