@@ -5,6 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:async'; 
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart'; 
+import 'package:firebase_database/ui/firebase_animated_list.dart';
 
 void main() {
   runApp(new FriendlychatApp());
@@ -32,7 +34,8 @@ class ChatScreen extends StatefulWidget {
 
 class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final List<ChatMessage> _messages = <ChatMessage>[];
-  final TextEditingController _textController = new TextEditingController(); 
+  final TextEditingController _textController = new TextEditingController();
+  final reference = FirebaseDatabase.instance.reference().child('messages'); 
   bool _isComposing = false;                 
   @override                                                        
   Widget build(BuildContext context) {
@@ -41,16 +44,28 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           title: new Text("Chatty"),
           elevation:
               Theme.of(context).platform == TargetPlatform.iOS ? 0.0 : 4.0),
-      body: new Container(                                             
-          child: new Column(                                           
-            children: <Widget>[
-              new Flexible(
-                child: new ListView.builder(
-                  padding: new EdgeInsets.all(8.0),
-                  reverse: true,
-                  itemBuilder: (_, int index) => _messages[index],
-                  itemCount: _messages.length,
-                ),
+            body: new Column(children: <Widget>[ 
+                    new Flexible(
+                      child: new FirebaseAnimatedList(                            //new
+                          query: reference,                                       //new
+                          sort: (a, b) => b.key.compareTo(a.key),                 //new
+                          padding: new EdgeInsets.all(8.0),                       //new
+                          reverse: true,                                          //new
+                          itemBuilder: (_, DataSnapshot snapshot, Animation<double> animation) { //new
+                            return new ChatMessage(                               //new
+                              snapshot: snapshot,                                 //new
+                              animation: animation                                //new
+                            );                                                    //new
+                          },                                                      //new
+                        ),                                                        //new
+                      ),
+
+                // child: new ListView.builder(
+                //   padding: new EdgeInsets.all(8.0),
+                //   reverse: true,
+                //   itemBuilder: (_, int index) => _messages[index],
+                //   itemCount: _messages.length,
+                // ),
               ),
               new Divider(height: 1.0),
               new Container(
@@ -151,18 +166,12 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     message.animationController.forward();
   }
   void _sendMessage({ String text }) {
-    ChatMessage message = new ChatMessage(
-      text: text,
-      animationController: new AnimationController(
-        duration: new Duration(milliseconds: 700),
-        vsync: this,
-      ),
-    );
-    setState(() {
-      _messages.insert(0, message);
+    reference.push().set({
+      'text': text,
+      'senderName': googleSignIn.currentUser.displayName,
+      'senderPhotoUrl': googleSignIn.currentUser.photoUrl,
     });
-    message.animationController.forward();
-    analytics.logEvent(name: 'send_message');
+    analytics.logEvent(name: 'send_message');                 
   }
 }
 
@@ -224,3 +233,8 @@ final ThemeData kDefaultTheme = new ThemeData(
 final googleSignIn = new GoogleSignIn();  
 final analytics = new FirebaseAnalytics();
 final auth = FirebaseAuth.instance;
+
+class ChatMessage extends StatelessWidget {
+   ChatMessage({this.snapshot, this.animation});              // modified
+   final DataSnapshot snapshot;                               // modified
+   final Animation animation;   
